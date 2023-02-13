@@ -1,6 +1,6 @@
 import Foundation
 
-public struct Player {
+public class Player: Equatable {
     
     private let id: UUID = .init()
     private let name: String
@@ -9,6 +9,18 @@ public struct Player {
     public private(set) var speed: Int
     public private(set) var life: Int
     public private(set) var luck: Int
+    
+    public var playerDescription: String {
+        return "\(name), attack: \(attack), defence: \(defence), speed: \(speed), life: \(life), luck: \(luck)"
+    }
+    
+    public var lifeDescription: String {
+        return "\(name) has \(life) points of life left"
+    }
+    
+    public static func ==(lhs: Player, rhs: Player) -> Bool{
+        return lhs.id == rhs.id
+    }
     
     public init(name:String, attack: Int, defence: Int,  speed: Int, life: Int, luck: Int) throws {
         
@@ -40,8 +52,8 @@ public struct Player {
         return name
     }
     
-    public mutating func setLife(_ life: Int) {
-        self.life = life
+    public func setLife(_ life: Int) {
+        self.life = life < 0 ? 0 : life
     }
     
 }
