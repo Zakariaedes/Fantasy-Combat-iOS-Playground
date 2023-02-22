@@ -3,20 +3,12 @@ import Foundation
 public class Player: Equatable {
     
     private let id: UUID = .init()
-    private let name: String
+    public let name: String
     public private(set) var attack: Int
     public private(set) var defence: Int
     public private(set) var speed: Int
     public private(set) var life: Int
     public private(set) var luck: Int
-    
-    public var playerDescription: String {
-        return "\(name), attack: \(attack), defence: \(defence), speed: \(speed), life: \(life), luck: \(luck)"
-    }
-    
-    public var lifeDescription: String {
-        return "\(name) has \(life) points of life left"
-    }
     
     public static func ==(lhs: Player, rhs: Player) -> Bool{
         return lhs.id == rhs.id
@@ -48,12 +40,14 @@ public class Player: Equatable {
         
     }
     
-    public func getName() -> String {
-        return name
+    public func isAlive() -> Bool {
+        return life > 0
     }
     
-    public func setLife(_ life: Int) {
-        self.life = life < 0 ? 0 : life
+    public func calculateDamagePoints(attacker: Player, multipliedBy constant: Int) -> Int{
+        let damagePoints = (attacker.attack * constant) - defence
+        life -= damagePoints
+        return damagePoints
     }
     
 }

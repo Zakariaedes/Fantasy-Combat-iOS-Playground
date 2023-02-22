@@ -4,7 +4,9 @@ public class Match {
     
     private static let maxAttacksPerRound: Int = 2
     
-    public private(set) var lastRound: Round?
+    public private(set) var player1: Player
+    public private(set) var player2: Player
+    public var roundNumber: UInt = 1
     
     private enum AttackType: Int, CaseIterable {
         case miss
@@ -29,15 +31,9 @@ public class Match {
         static func getMaxPercentage(using playerLuck: Int) -> Int {
             var max: Int = 0
             AttackType.allCases.forEach {
-                var percentage: Int = $0.percentage
-                if $0 == .critical {
-                    percentage += playerLuck
-                }
-                if percentage > max {
-                    max = percentage
-                }
+                max += $0.percentage
             }
-            return max
+            return max + playerLuck
         }
         
         static func getType(using playerLuck: Int) -> AttackType {
@@ -74,93 +70,99 @@ public class Match {
         
     }
     
-    public init(round: Round) {
-        self.lastRound = round
+    public init(player1: Player, player2: Player) {
+        self.player1 = player1
+        self.player2 = player2
     }
     
-    public func addRound(round: Round) {
-        let currentRound = lastRound
-        lastRound = round
-        lastRound?.setPreviousRound(round: currentRound)
-    }
-    
-    private func getAttackerAndDefender(round: Round) -> (attacker: Player, defender: Player) {
-        if round.player1.speed == round.player2.speed {
-            let randomPlayer: Player = [round.player1, round.player2].randomElement()!
-            if randomPlayer == round.player1 {
-                return (round.player1, round.player2)
+    private func getAttackerAndDefender() -> (attacker: Player, defender: Player) {
+        if player1.speed == player2.speed {
+            let randomPlayer: Player = [player1, player2].randomElement()!
+            if randomPlayer == player1 {
+                return (player1, player2)
             }
-            return (round.player2, round.player1)
+            return (player2, player1)
         }
-        if round.player1.speed > round.player2.speed {
-            return (round.player1, round.player2)
+        if player1.speed > player2.speed {
+            return (player1, player2)
         }
-        return (round.player2, round.player1)
+        return (player2, player1)
+    }
+    
+    private func swap(attacker: inout Player, with defender: inout Player) {
+        let tempAttacker: Player = attacker
+        attacker = defender
+        defender = tempAttacker
+    }
+    
+    private func logStartGameMessages(player1: Player, player2: Player) {
+        Logger.shared.log(message: Messages.gameStarted.uppercased())
+        Logger.shared.log(message: Messages.playerInfo(playerNumber: 1, player: player1))
+        Logger.shared.log(message: Messages.playerInfo(playerNumber: 2, player: player2))
+        Logger.shared.log(message: Messages.currentRoundNumber(number: roundNumber))
+    }
+    
+    private func logEndGameMessages() {
+        let winnerName: String = !player1.isAlive() ? player2.name : player1.name
+        Logger.shared.log(message: Messages.winnerPlayer(name: winnerName))
+        Logger.shared.log(message: Messages.gameEnded.uppercased())
+    }
+    
+    private func logAndUpdateRoundNumber(using attacksPerRound: inout Int) {
+        if attacksPerRound == Match.maxAttacksPerRound {
+            roundNumber += 1
+            attacksPerRound = 0
+            Logger.shared.log(message: Messages.currentRoundNumber(number: roundNumber))
+        }
+    }
+    
+    private func logAttackTypeAndCalculateDamage(attacker: Player, defender: Player, attackType: AttackType, byUpdating damagePoints: inout Int) {
+        
+        if attackType == .miss {
+            Logger.shared.log(message: Messages.miss)
+        } else {
+            
+            if attackType == .critical {
+                Logger.shared.log(message: Messages.critical)
+            }
+            
+            damagePoints = defender.calculateDamagePoints(attacker: attacker, multipliedBy: attackType.constant)
+            
+        }
+        
+        Logger.shared.log(message: Messages.playerInfectionDamage(name: attacker.name, damagePoints: damagePoints))
+        Logger.shared.log(message: Messages.playerLife(of: defender))
+        
     }
     
 }
 
 extension Match {
     
-    public func play() throws {
+    public func play() {
         
-        if var currentRound = lastRound {
+        var (attacker, defender) = getAttackerAndDefender()
+        var attacksPerRound: Int = 0
+        
+        logStartGameMessages(player1: attacker, player2: defender)
+        
+        repeat {
             
-            var (attacker, defender) = getAttackerAndDefender(round: currentRound)
-            var attacksPerRound: Int = 0
+            let attackType: AttackType = AttackType.getType(using: attacker.luck)
+            var damagePoints: Int = 0
             
-            print("START GAME")
-            print("\nPlayer 1:", attacker.playerDescription)
-            print("Player 2:", defender.playerDescription)
-            print(currentRound.roundNumberDescription)
+            logAndUpdateRoundNumber(using: &attacksPerRound)
             
-            repeat {
-                
-                let attackType: AttackType = AttackType.getType(using: attacker.luck)
-                var damagePoints: Int = 0
-                
-                if attacksPerRound == Match.maxAttacksPerRound {
-                    do {
-                        let round: Round = try .init(number: nil, player1: defender, player2: attacker, previousRound: currentRound)
-                        currentRound = round
-                        print(currentRound.roundNumberDescription)
-                            attacksPerRound = 0
-                    } catch {
-                        throw error
-                    }
-                }
-                
-                if attackType == .miss {
-                    print("Miss!")
-                } else {
-                    
-                    if attackType == .critical {
-                        print("Critical!")
-                    }
-                    
-                    damagePoints = (attacker.attack * attackType.constant) - defender.defence
-                    
-                    defender.setLife(defender.life - damagePoints)
-                    
-                }
-                
-                print("\(attacker.getName()) inflicts \(damagePoints) of damage")
-                print(defender.lifeDescription)
-                
-                let tempAttacker: Player = attacker
-                attacker = defender
-                defender = tempAttacker
-                
-                attacksPerRound += 1
-                
-            } while (attacker.life > 0 && defender.life > 0)
+            logAttackTypeAndCalculateDamage(attacker: attacker, defender: defender, attackType: attackType, byUpdating: &damagePoints)
             
-            let winnerName: String = currentRound.player1.life <= 0 ? currentRound.player2.getName() : currentRound.player1.getName()
+            swap(attacker: &attacker, with: &defender)
             
-            print("\n\(winnerName) won.")
-            print("END GAME")
+            attacksPerRound += 1
             
-        }
+        } while (attacker.isAlive() && defender.isAlive())
+        
+        logEndGameMessages()
+        
         
     }
     
