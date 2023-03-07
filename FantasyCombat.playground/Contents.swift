@@ -7,7 +7,7 @@ do {
         
     let match: Match = .init(player1: player1, player2: player2)
     
-    match.play()
+    match.start()
     
 } catch {
     print(error.localizedDescription)

@@ -8,68 +8,6 @@ public class Match {
     public private(set) var player2: Player
     public var roundNumber: UInt = 1
     
-    private enum AttackType: Int, CaseIterable {
-        case miss
-        case normal
-        case critical
-        
-        var percentage: Int {
-            switch self {
-            case .normal: return 60
-            default: return 20
-            }
-        }
-        
-        var constant: Int {
-            switch self {
-            case .miss: return 0
-            case .critical: return 3
-            default: return 1
-            }
-        }
-        
-        static func getMaxPercentage(using playerLuck: Int) -> Int {
-            var max: Int = 0
-            AttackType.allCases.forEach {
-                max += $0.percentage
-            }
-            return max + playerLuck
-        }
-        
-        static func getType(using playerLuck: Int) -> AttackType {
-            
-            let maxPercentage: Int = self.getMaxPercentage(using: playerLuck)
-            
-            let generatedNumber: Int = .random(in: 0...maxPercentage)
-            
-            let criticalAttackTotalPercentage: Int = AttackType.critical.percentage + playerLuck
-            
-            if AttackType.miss.percentage == criticalAttackTotalPercentage && generatedNumber <= criticalAttackTotalPercentage {
-                return [.miss, .critical].randomElement()!
-            }
-            
-            if AttackType.normal.percentage == criticalAttackTotalPercentage && generatedNumber <= criticalAttackTotalPercentage {
-                return [.normal, .critical].randomElement()!
-            }
-            
-            if generatedNumber <= AttackType.miss.percentage {
-                return .miss
-            }
-            
-            if generatedNumber <= AttackType.normal.percentage && criticalAttackTotalPercentage > AttackType.normal.percentage {
-                return .normal
-            }
-            
-            if generatedNumber <= criticalAttackTotalPercentage {
-                return .critical
-            }
-            
-            return .normal
-            
-        }
-        
-    }
-    
     public init(player1: Player, player2: Player) {
         self.player1 = player1
         self.player2 = player2
@@ -108,7 +46,7 @@ public class Match {
         Logger.shared.log(message: Messages.gameEnded.uppercased())
     }
     
-    private func logAndUpdateRoundNumber(using attacksPerRound: inout Int) {
+    private func updateRoundNumber(using attacksPerRound: inout Int) {
         if attacksPerRound == Match.maxAttacksPerRound {
             roundNumber += 1
             attacksPerRound = 0
@@ -116,22 +54,14 @@ public class Match {
         }
     }
     
-    private func logAttackTypeAndCalculateDamage(attacker: Player, defender: Player, attackType: AttackType, byUpdating damagePoints: inout Int) {
+    private func calculateDamage(attacker: Player, defender: Player, attackType: AttackTypeProtocol) -> Int {
         
-        if attackType == .miss {
-            Logger.shared.log(message: Messages.miss)
-        } else {
-            
-            if attackType == .critical {
-                Logger.shared.log(message: Messages.critical)
-            }
-            
-            damagePoints = defender.calculateDamagePoints(attacker: attacker, multipliedBy: attackType.constant)
-            
-        }
-        
+        let damagePoints = defender.calculateDamagePoints(attacker: attacker, multipliedBy: attackType.attackMultiplier)
+
         Logger.shared.log(message: Messages.playerInfectionDamage(name: attacker.name, damagePoints: damagePoints))
-        Logger.shared.log(message: Messages.playerLife(of: defender))
+            Logger.shared.log(message: Messages.playerLife(of: defender))
+        
+        return damagePoints
         
     }
     
@@ -139,7 +69,7 @@ public class Match {
 
 extension Match {
     
-    public func play() {
+    public func start() {
         
         var (attacker, defender) = getAttackerAndDefender()
         var attacksPerRound: Int = 0
@@ -148,12 +78,13 @@ extension Match {
         
         repeat {
             
-            let attackType: AttackType = AttackType.getType(using: attacker.luck)
-            var damagePoints: Int = 0
+            let attackType: AttackTypeProtocol = AttackTypeFactory.make(using: attacker.luck)
             
-            logAndUpdateRoundNumber(using: &attacksPerRound)
+            updateRoundNumber(using: &attacksPerRound)
             
-            logAttackTypeAndCalculateDamage(attacker: attacker, defender: defender, attackType: attackType, byUpdating: &damagePoints)
+            let damagePoints: Int = calculateDamage(attacker: attacker, defender: defender, attackType: attackType)
+            
+            defender.decreaseLife(damagePoints)
             
             swap(attacker: &attacker, with: &defender)
             

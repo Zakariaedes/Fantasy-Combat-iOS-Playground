@@ -44,9 +44,15 @@ public class Player: Equatable {
         return life > 0
     }
     
+    public func decreaseLife(_ damage: Int) {
+        life -= damage
+    }
+    
     public func calculateDamagePoints(attacker: Player, multipliedBy constant: Int) -> Int{
+        if constant == 0 {
+            return 0
+        }
         let damagePoints = (attacker.attack * constant) - defence
-        life -= damagePoints
         return damagePoints
     }
     

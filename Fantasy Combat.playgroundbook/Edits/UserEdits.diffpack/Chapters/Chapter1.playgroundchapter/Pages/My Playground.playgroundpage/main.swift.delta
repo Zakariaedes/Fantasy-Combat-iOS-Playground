@@ -24,14 +24,14 @@
         
     let match: Match = .init(player1: player1, player2: player2)
     
-    match.play()
+    match.start()
     
 } catch {
     print(error.localizedDescription)
 }
 </string>
 			<key>ModifiedRange</key>
-			<string>{19, 378}</string>
+			<string>{19, 379}</string>
 			<key>OriginalContent</key>
 			<string></string>
 			<key>OriginalRange</key>
